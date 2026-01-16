@@ -1,0 +1,44 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor directories and files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs
+logs/
+*.log
+
+# Dependencies
+node_modules/
+vendor/
+__pycache__/
+*.pyc
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+build/
+out/
+target/
+
+# Scripts
+ralph.sh
+ralphoc.sh
+gh-init.sh
+
+# Nix flake build
+result
+
+
+# Project planning
+PRD.md
+progress.txt

@@ -69,6 +69,8 @@
           inherit vscodeWithExtensions;
         };
 
+        formatter = pkgs.nixpkgs-fmt;
+
         devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
             nixpkgs-fmt
@@ -84,9 +86,7 @@
           let
             # Helper to find the wrapper script path
             # On Linux, wrapGAppsHook3 wraps to .code-wrapped; on macOS it's just code
-            findWrapper =
-              pkg:
-              if stdenv.isDarwin then "${pkg}/bin/code" else "${pkg}/bin/.code-wrapped";
+            findWrapper = pkg: if stdenv.isDarwin then "${pkg}/bin/code" else "${pkg}/bin/.code-wrapped";
           in
           {
             # Basic build check - ensures the default package builds

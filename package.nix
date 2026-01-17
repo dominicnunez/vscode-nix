@@ -155,14 +155,14 @@ let
                       echo "[vscode-nix] Home Manager detected - skipping ~/.local/bin/code symlink" >&2
                     fi
 
-                    # Remove our symlink if it exists and points to our binary
+                    # Remove our symlink if it exists and points to a Nix store path
                     if [[ -L "$symlink_path" ]]; then
                       local current_target
-                      current_target=$(realpath "$symlink_path" 2>/dev/null || readlink "$symlink_path" 2>/dev/null || true)
-                      if [[ "$current_target" == "$real_code" ]]; then
+                      current_target=$(readlink "$symlink_path" 2>/dev/null || echo "")
+                      if [[ "$current_target" == /nix/store/* ]]; then
                         rm -f "$symlink_path"
                         if [[ "$verbose" == "1" ]]; then
-                          echo "[vscode-nix] Removed existing symlink (was managed by vscode-nix)" >&2
+                          echo "[vscode-nix] Removed orphaned symlink (Home Manager now manages code)" >&2
                         fi
                       fi
                     fi

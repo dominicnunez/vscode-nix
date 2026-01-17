@@ -330,12 +330,15 @@ This package includes smart Home Manager detection. When running VS Code:
 
 **If Home Manager is detected:**
 - Skips creating `~/.local/bin/code` symlink
+- Cleans up any orphaned symlinks pointing to Nix store paths
 - Respects your declarative Home Manager configuration
 - Prints informational message (suppressible)
 
 **If Home Manager is NOT detected:**
 - Creates `~/.local/bin/code` symlink for convenience
 - Allows running `code` from anywhere if `~/.local/bin` is in your PATH
+
+**Automatic cleanup:** If you previously installed vscode-nix standalone (creating a `~/.local/bin/code` symlink) and later enable Home Manager, the package will automatically remove the orphaned symlink on first run to prevent PATH conflicts.
 
 ### Detection Indicators
 

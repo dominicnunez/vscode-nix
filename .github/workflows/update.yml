@@ -43,6 +43,11 @@ jobs:
         run: |
           nix develop --command ./update.sh --update
 
+      - name: Validate flake
+        if: steps.check.outputs.update_needed == 'true'
+        run: |
+          nix flake check
+
       - name: Create Pull Request
         id: pr
         if: steps.check.outputs.update_needed == 'true'
@@ -80,10 +85,9 @@ jobs:
           echo "Created PR: $pr_url"
           echo "pr_url=$pr_url" >> $GITHUB_OUTPUT
 
-      - name: Enable auto-merge
+      - name: Merge Pull Request
         if: steps.check.outputs.update_needed == 'true' && steps.pr.outputs.pr_url != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Enable auto-merge with squash strategy and delete branch after merge
-          gh pr merge --auto --squash --delete-branch "${{ steps.pr.outputs.pr_url }}"
+          gh pr merge --squash --delete-branch "${{ steps.pr.outputs.pr_url }}"

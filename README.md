@@ -385,9 +385,9 @@ When using extensions, settings, or keybindings configuration:
 1. **Daily Check**: GitHub Actions runs `update.sh` daily at 00:00 UTC
 2. **Version Detection**: Script queries GitHub API for latest VS Code release
 3. **Hash Fetching**: If newer version found, fetches SHA256 hashes for all platforms
-4. **PR Creation**: Creates PR with updated `version.json`
-5. **CI Validation**: PR triggers build on Linux and macOS to verify package works
-6. **Auto-Merge**: After CI passes, PR is automatically squash-merged
+4. **Validation**: Runs `nix flake check` to verify package builds correctly
+5. **PR Creation**: Creates PR with updated `version.json`
+6. **Merge**: PR is automatically squash-merged
 
 ### Manual Update
 

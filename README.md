@@ -330,15 +330,14 @@ This package includes smart Home Manager detection. When running VS Code:
 
 **If Home Manager is detected:**
 - Skips creating `~/.local/bin/code` symlink
-- Cleans up any orphaned symlinks pointing to Nix store paths
+- Cleans up symlinks that were created by this package
 - Respects your declarative Home Manager configuration
-- Prints informational message (suppressible)
 
 **If Home Manager is NOT detected:**
 - Creates `~/.local/bin/code` symlink for convenience
 - Allows running `code` from anywhere if `~/.local/bin` is in your PATH
 
-**Automatic cleanup:** If you previously installed vscode-nix standalone (creating a `~/.local/bin/code` symlink) and later enable Home Manager, the package will automatically remove the orphaned symlink on first run to prevent PATH conflicts.
+**Automatic cleanup:** If you previously installed vscode-nix standalone (creating a `~/.local/bin/code` symlink) and later enable Home Manager, the package will automatically remove the symlink on first run to prevent PATH conflicts.
 
 ### Detection Indicators
 
@@ -347,26 +346,26 @@ Home Manager is detected if any of these conditions are true:
 - `~/.config/home-manager` directory exists
 - `/etc/profiles/per-user/$USER` directory exists
 
-### Suppressing Messages
+### Enabling Verbose Messages
 
-To suppress informational messages from the wrapper:
+To enable informational messages from the wrapper:
 
 ```bash
-export VSCODE_NIX_QUIET=1
+export VSCODE_NIX_VERBOSE=1
 ```
 
 Or add to your shell profile:
 
 ```bash
 # ~/.bashrc or ~/.zshrc
-export VSCODE_NIX_QUIET=1
+export VSCODE_NIX_VERBOSE=1
 ```
 
 ## Environment Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `VSCODE_NIX_QUIET` | Set to `1` to suppress wrapper messages | unset |
+| `VSCODE_NIX_VERBOSE` | Set to `1` to enable wrapper messages | unset |
 | `XDG_DATA_HOME` | Base directory for VS Code data | `~/.local/share` |
 | `XDG_CONFIG_HOME` | Base directory for VS Code config | `~/.config` |
 

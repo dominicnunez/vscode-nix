@@ -126,74 +126,49 @@ let
                 #!/usr/bin/env bash
                 set -euo pipefail
 
+                # Verbose output (opt-in via VSCODE_NIX_VERBOSE=1)
+                verbose=''${VSCODE_NIX_VERBOSE:-0}
+
                 # Home Manager detection function
                 is_home_manager_active() {
-                  # Check HM_SESSION_VARS environment variable
-                  [[ -n "''${HM_SESSION_VARS:-}" ]] && return 0
-
-                  # Check for Home Manager config directory
-                  [[ -d "$HOME/.config/home-manager" ]] && return 0
-
-                  # Check for per-user profile (NixOS Home Manager indicator)
-                  [[ -d "/etc/profiles/per-user/$USER" ]] && return 0
-
-                  return 1
+                  [[ -n "''${HM_SESSION_VARS:-}" ]] ||
+                  [[ -d "$HOME/.config/home-manager" ]] ||
+                  [[ -d "/etc/profiles/per-user/$USER" ]]
                 }
 
                 # Manage ~/.local/bin/code symlink based on Home Manager detection
                 manage_symlink() {
                   local target_dir="$HOME/.local/bin"
                   local symlink_path="$target_dir/code"
-                  local real_code="VSCODE_BIN_PLACEHOLDER"
+                  local binary_path="VSCODE_BIN_PLACEHOLDER"
 
-                  # Check if user wants verbose output (quiet by default)
-                  local verbose=''${VSCODE_NIX_VERBOSE:-0}
-
+                  # If Home Manager is active, clean up our symlink if it exists and skip creation
                   if is_home_manager_active; then
-                    # Home Manager detected - skip symlink creation
-                    if [[ "$verbose" == "1" ]]; then
-                      echo "[vscode-nix] Home Manager detected - skipping ~/.local/bin/code symlink" >&2
-                    fi
-
-                    # Remove our symlink if it exists and points to a Nix store path
                     if [[ -L "$symlink_path" ]]; then
-                      local current_target
-                      current_target=$(readlink "$symlink_path" 2>/dev/null || echo "")
-                      if [[ "$current_target" == /nix/store/* ]]; then
+                      local link_target
+                      link_target="$(readlink "$symlink_path" 2>/dev/null || echo "")"
+                      # Match exact current path OR any older version of this package
+                      if [[ "$link_target" == "$binary_path" ]] || \
+                         [[ "$link_target" == /nix/store/*-vscode-* ]]; then
                         rm -f "$symlink_path"
-                        if [[ "$verbose" == "1" ]]; then
-                          echo "[vscode-nix] Removed orphaned symlink (Home Manager now manages code)" >&2
-                        fi
+                        [[ "$verbose" == "1" ]] && echo "[vscode-nix] Removed symlink (Home Manager now manages code)" >&2
                       fi
                     fi
-                  else
-                    # Home Manager not detected - create symlink for convenience
-                    if [[ ! -d "$target_dir" ]]; then
-                      mkdir -p "$target_dir"
-                    fi
-
-                    # Only create/update symlink if it doesn't exist or points elsewhere
-                    if [[ ! -e "$symlink_path" ]] || [[ -L "$symlink_path" ]]; then
-                      local needs_update=0
-
-                      if [[ ! -e "$symlink_path" ]]; then
-                        needs_update=1
-                      elif [[ -L "$symlink_path" ]]; then
-                        local current_target
-                        current_target=$(realpath "$symlink_path" 2>/dev/null || readlink "$symlink_path" 2>/dev/null || true)
-                        if [[ "$current_target" != "$real_code" ]]; then
-                          needs_update=1
-                        fi
-                      fi
-
-                      if [[ "$needs_update" == "1" ]]; then
-                        ln -sf "$real_code" "$symlink_path"
-                        if [[ "$verbose" == "1" ]]; then
-                          echo "[vscode-nix] Created ~/.local/bin/code symlink" >&2
-                        fi
-                      fi
-                    fi
+                    return 0
                   fi
+
+                  # Check if symlink already points to the correct target
+                  local current_target
+                  current_target="$(readlink -f "$symlink_path" 2>/dev/null || echo "")"
+
+                  if [[ "$current_target" == "$binary_path" ]]; then
+                    return 0  # Already correct
+                  fi
+
+                  # Create or update symlink
+                  mkdir -p "$target_dir"
+                  ln -sf "$binary_path" "$symlink_path"
+                  [[ "$verbose" == "1" ]] && echo "[vscode-nix] Created ~/.local/bin/code symlink" >&2
                 }
 
                 # Set up environment
@@ -201,46 +176,8 @@ let
                 export XDG_CONFIG_HOME="''${XDG_CONFIG_HOME:-$HOME/.config}"
                 export PATH="EXTRA_PATH_PLACEHOLDER:$PATH"
 
-                # State-based symlink management
-                # Only run when binary path or HM detection status changes
-                SYMLINK_STATE_FILE="''${XDG_DATA_HOME}/vscode-nix/.symlink-state"
-                CURRENT_BINARY="VSCODE_BIN_PLACEHOLDER"
-
-                # Determine current HM status
-                if is_home_manager_active; then
-                  CURRENT_HM_DETECTED="true"
-                else
-                  CURRENT_HM_DETECTED="false"
-                fi
-
-                # Check if state has changed
-                run_symlink_management=0
-                if [[ ! -f "$SYMLINK_STATE_FILE" ]]; then
-                  run_symlink_management=1
-                else
-                  # Read stored state
-                  stored_binary=""
-                  stored_hm=""
-                  while IFS='=' read -r key value; do
-                    case "$key" in
-                      BINARY_PATH) stored_binary="$value" ;;
-                      HM_DETECTED) stored_hm="$value" ;;
-                    esac
-                  done < "$SYMLINK_STATE_FILE"
-
-                  # Compare with current state
-                  if [[ "$stored_binary" != "$CURRENT_BINARY" ]] || [[ "$stored_hm" != "$CURRENT_HM_DETECTED" ]]; then
-                    run_symlink_management=1
-                  fi
-                fi
-
-                if [[ "$run_symlink_management" == "1" ]]; then
-                  manage_symlink
-
-                  # Update state file
-                  mkdir -p "$(dirname "$SYMLINK_STATE_FILE")"
-                  printf "BINARY_PATH=%s\nHM_DETECTED=%s\n" "$CURRENT_BINARY" "$CURRENT_HM_DETECTED" > "$SYMLINK_STATE_FILE"
-                fi
+                # Run symlink management
+                manage_symlink
 
                 # Set LD_LIBRARY_PATH for Linux (empty/harmless on macOS)
                 if [[ -n "EXTRA_LD_LIBRARY_PATH_PLACEHOLDER" ]]; then

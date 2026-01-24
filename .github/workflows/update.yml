@@ -1,25 +1,29 @@
-name: Check for VS Code Updates
+# Automated Update Workflow
+#
+# VS Code releases monthly, so daily checks are sufficient.
+# Pushes updates directly to main.
+
+name: Update VS Code
 
 on:
   schedule:
-    # Run daily at 00:00 UTC
-    - cron: '0 0 * * *'
+    - cron: '0 0 * * *'  # Daily at midnight UTC
   workflow_dispatch:
-    # Allow manual triggering
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
-  check-update:
+  update:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@main
+        uses: DeterminateSystems/nix-installer-action@v17
         with:
           extra-conf: |
             accept-flake-config = true
@@ -27,18 +31,18 @@ jobs:
       - name: Check for updates
         id: check
         run: |
-          # Run version check
-          output=$(./update.sh)
+          output=$(./update.sh 2>&1) || true
           echo "$output"
 
-          # Parse output
-          update_needed=$(echo "$output" | grep "UPDATE_NEEDED=" | cut -d= -f2)
-          new_version=$(echo "$output" | grep "NEW_VERSION=" | cut -d= -f2)
+          if echo "$output" | grep -q "UPDATE_NEEDED=true"; then
+            echo "update_needed=true" >> $GITHUB_OUTPUT
+            new_version=$(echo "$output" | grep "NEW_VERSION=" | cut -d= -f2)
+            echo "new_version=$new_version" >> $GITHUB_OUTPUT
+          else
+            echo "update_needed=false" >> $GITHUB_OUTPUT
+          fi
 
-          echo "update_needed=$update_needed" >> $GITHUB_OUTPUT
-          echo "new_version=$new_version" >> $GITHUB_OUTPUT
-
-      - name: Fetch new hashes and update version.json
+      - name: Update version.json
         if: steps.check.outputs.update_needed == 'true'
         run: |
           nix develop --command ./update.sh --update
@@ -48,46 +52,24 @@ jobs:
         run: |
           nix flake check
 
-      - name: Create Pull Request
-        id: pr
+      - name: Push update
         if: steps.check.outputs.update_needed == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NEW_VERSION: ${{ steps.check.outputs.new_version }}
         run: |
-          # Configure git
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Create branch
-          branch_name="update/vscode-${NEW_VERSION}"
-          git checkout -b "$branch_name"
-
-          # Commit changes
           git add version.json
-          git commit -m "chore: update vscode to ${NEW_VERSION}"
+          git commit -m "chore: update vscode to ${{ steps.check.outputs.new_version }}"
+          git push origin HEAD:main
 
-          # Push branch
-          git push origin "$branch_name"
-
-          # Create PR
-          major_version=${NEW_VERSION%%.*}
-          minor_version=${NEW_VERSION#*.}
-          minor_version=${minor_version%%.*}
-          changelog_version="v${major_version}_${minor_version}"
-
-          pr_body=$'## VS Code Update\n\nThis PR updates VS Code to version **'"${NEW_VERSION}"'**.\n\n### Changelog\nSee the full release notes: https://code.visualstudio.com/updates/'"${changelog_version}"'\n\n### Changes\n- Updated `version.json` with new version and platform hashes\n\n---\n*This PR was automatically created by the update workflow.*'
-          pr_url=$(gh pr create \
-            --title "chore: update vscode to ${NEW_VERSION}" \
-            --body "$pr_body")
-
-
-          echo "Created PR: $pr_url"
-          echo "pr_url=$pr_url" >> $GITHUB_OUTPUT
-
-      - name: Merge Pull Request
-        if: steps.check.outputs.update_needed == 'true' && steps.pr.outputs.pr_url != ''
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Summary
         run: |
-          gh pr merge --squash --delete-branch "${{ steps.pr.outputs.pr_url }}"
+          if [[ "${{ steps.check.outputs.update_needed }}" == "true" ]]; then
+            echo "## Update Applied" >> $GITHUB_STEP_SUMMARY
+            echo "Updated to version ${{ steps.check.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## No Update Needed" >> $GITHUB_STEP_SUMMARY
+            echo "Already on the latest version" >> $GITHUB_STEP_SUMMARY
+          fi

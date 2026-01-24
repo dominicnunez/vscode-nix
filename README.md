@@ -1,13 +1,13 @@
 # vscode-nix
 
-A Nix flake that packages VS Code (Microsoft's official build) directly from binaries, with automated daily updates, Cachix binary caching, and declarative configuration for extensions, settings, and keybindings.
+A Nix flake that packages VS Code (Microsoft's official build) directly from binaries, with automated daily updates, Garnix binary caching, and declarative configuration for extensions, settings, and keybindings.
 
 ## Features
 
 - Official Microsoft VS Code binaries (not VSCodium)
 - Supports Linux x64, Linux aarch64, macOS x64, and macOS aarch64
 - Automated daily updates via GitHub Actions
-- Pre-built binaries on Cachix for instant installation
+- Pre-built binaries via Garnix for instant installation
 - Declarative extensions management
 - Settings and keybindings configuration via Nix
 - Smart Home Manager integration detection
@@ -22,39 +22,11 @@ nix run github:dominicnunez/vscode-nix
 nix shell github:dominicnunez/vscode-nix -c code
 ```
 
-## Cachix Setup
+## Binary Cache
 
-Pre-built binaries are available via Cachix for instant installation without local compilation.
+This flake uses [Garnix](https://garnix.io) for CI and binary caching. The `nixConfig` in `flake.nix` automatically configures the cache, so pre-built binaries are fetched without any manual setup.
 
-### NixOS Configuration
-
-```nix
-# configuration.nix or in your NixOS module
-nix.settings = {
-  substituters = [ "https://vscode-nix.cachix.org" ];
-  trusted-public-keys = [ "vscode-nix.cachix.org-1:JkWxvwZs0Mb/lp48seQIqOGU4MbwD2Mn9Mm4tZp7K48=" ];
-};
-```
-
-### Non-NixOS (nix.conf)
-
-Add to `~/.config/nix/nix.conf` or `/etc/nix/nix.conf`:
-
-```
-substituters = https://cache.nixos.org https://vscode-nix.cachix.org
-trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= vscode-nix.cachix.org-1:JkWxvwZs0Mb/lp48seQIqOGU4MbwD2Mn9Mm4tZp7K48=
-```
-
-### Flake-based Setup
-
-```nix
-{
-  nixConfig = {
-    extra-substituters = [ "https://vscode-nix.cachix.org" ];
-    extra-trusted-public-keys = [ "vscode-nix.cachix.org-1:JkWxvwZs0Mb/lp48seQIqOGU4MbwD2Mn9Mm4tZp7K48=" ];
-  };
-}
-```
+If prompted to allow configuration from the flake, answer yes or add `accept-flake-config = true` to your Nix configuration.
 
 ## Installation
 
@@ -386,8 +358,7 @@ When using extensions, settings, or keybindings configuration:
 2. **Version Detection**: Script queries GitHub API for latest VS Code release
 3. **Hash Fetching**: If newer version found, fetches SHA256 hashes for all platforms
 4. **Validation**: Runs `nix flake check` to verify package builds correctly
-5. **PR Creation**: Creates PR with updated `version.json`
-6. **Merge**: PR is automatically squash-merged
+5. **Push**: Pushes update directly to main
 
 ### Manual Update
 
@@ -429,10 +400,10 @@ nix flake check
 ├── version.json        # Current version and platform hashes
 ├── update.sh           # Update detection and hash fetching script
 ├── README.md           # This file
+├── garnix.yaml         # Garnix CI configuration
 └── .github/workflows/
-    ├── update.yml      # Daily update check workflow
-    ├── ci.yml          # PR build validation workflow
-    └── cachix.yml      # Binary cache push workflow
+    ├── update.yml      # Daily update workflow
+    └── ci.yml          # Garnix build validation
 ```
 
 ## License
